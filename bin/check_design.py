@@ -75,8 +75,10 @@ def reformat_design(DesignFile,ReadMappingFile,ControlMappingFile):
             for fastq in fastQFiles:
                 ## CHECK FASTQ FILE EXTENSION
                 if fastq[-9:] != '.fastq.gz' and fastq[-6:] != '.fq.gz':
-                    print("{}: FastQ file has incorrect extension (has to be '.fastq.gz' or 'fq.gz') - {}\nLine: '{}'".format(ERROR_STR,fastq,line.strip()))
-                    sys.exit(1)
+                    ## CHECK IF SRA DOWNLOAD IS SPECIFIED
+                    if not fastq.startswith('SRR'):
+                        print("{}: FastQ file has incorrect extension (has to be '.fastq.gz' or 'fq.gz'), and is not SRR download - {}\nLine: '{}'".format(ERROR_STR,fastq,line.strip()))
+                        sys.exit(1)
 
             ## CREATE GROUP MAPPING DICT = {GROUP_ID: {REPLICATE_ID:[[FASTQ_FILES]]}
             if group not in sampleMappingDict:

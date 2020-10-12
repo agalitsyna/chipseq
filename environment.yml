@@ -26,6 +26,7 @@ dependencies:
   - conda-forge::pigz=2.3.4               ## Required for TrimGalore multi-threading
 
   ## bioconda packages
+  - bioconda::sra-tools=2.10.8      ## Required for SRA download of files
   - bioconda::fastqc=0.11.9
   - bioconda::trim-galore=0.6.5
   - bioconda::bwa=0.7.17
@@ -45,3 +46,6 @@ dependencies:
   - bioconda::bioconductor-biocparallel=1.20.0
   - bioconda::bioconductor-deseq2=1.26.0
   - bioconda::bioconductor-vsn=3.54.0
+  
+  - pip:
+    - git+https://github.com/open2c/pyfilesplit.git

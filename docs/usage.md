@@ -15,6 +15,7 @@
     * [`--seq_center`](#--seq_center)
     * [`--fragment_size`](#--fragment_size)
     * [`--fingerprint_bins`](#--fingerprint_bins)
+    * [`--sra_download`](#--sra_download)
 * [Reference genomes](#reference-genomes)
     * [`--genome` (using iGenomes)](#--genome-using-igenomes)
     * [`--fasta`](#--fasta)
@@ -251,6 +252,10 @@ Number of base pairs to extend single-end reads when creating bigWig files (Defa
 ### `--fingerprint_bins`
 
 Number of genomic bins to use when generating the deepTools fingerprint plot. Larger numbers will give a smoother profile, but take longer to run (Default: `500000`).
+
+### `--sra_download`
+
+By default, the pipeline runs on pre-downloaded FASTQ files. With `--sra_download` you can provide SRA accession numbers instead (e.g. SRR7271010) in `fastq_1`/`fastq_2` fields.
 
 ## Reference genomes
 

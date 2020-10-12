@@ -30,6 +30,7 @@ def helpMessage() {
       --seq_center [str]              Sequencing center information to be added to read group of BAM files (Default: false)
       --fragment_size [int]           Estimated fragment size used to extend single-end reads (Default: 200)
       --fingerprint_bins [int]        Number of genomic bins to use when calculating fingerprint plot (Default: 500000)
+      --sra_download [bool]           Download input FASTQ files from SRA, this requires SRA ID in fastq_1/fastq_2 fields. (Default: false)
 
     References                        If not specified in the configuration file or you wish to overwrite any of the references
       --genome [str]                  Name of iGenomes reference (Default: false)
@@ -226,6 +227,7 @@ summary['Design File']            = params.input
 summary['Genome']                 = params.genome ?: 'Not supplied'
 summary['Fasta File']             = params.fasta
 summary['GTF File']               = params.gtf
+if (params.sra_download)          summary['SRA download'] = 'No'
 if (params.gene_bed)              summary['Gene BED File'] = params.gene_bed
 if (params.bwa_index)             summary['BWA Index'] = params.bwa_index
 if (params.blacklist)             summary['Blacklist BED'] = params.blacklist
@@ -334,19 +336,30 @@ process CHECK_DESIGN {
 
 /*
  * Create channels for input fastq files
+ * If the files will be downloaded from SRA, paired-end reads will be downloaded from the SRA ID in fastq_1 field
  */
-if (params.single_end) {
-    ch_design_reads_csv
-        .splitCsv(header:true, sep:',')
-        .map { row -> [ row.sample_id, [ file(row.fastq_1, checkIfExists: true) ] ] }
-        .into { ch_raw_reads_fastqc;
-                ch_raw_reads_trimgalore }
+
+if (!params.sra_download) {
+
+    if (params.single_end) {
+        ch_design_reads_csv
+            .splitCsv(header:true, sep:',')
+            .map { row -> [ row.sample_id, [ file(row.fastq_1, checkIfExists: true) ] ] }
+            .into { ch_raw_reads_trimgalore;
+                    ch_raw_reads_fastqc }
+    } else {
+        ch_design_reads_csv
+            .splitCsv(header:true, sep:',')
+            .map { row -> [ row.sample_id, [ file(row.fastq_1, checkIfExists: true), file(row.fastq_2, checkIfExists: true) ] ] }
+            .into { ch_raw_reads_trimgalore;
+                    ch_raw_reads_fastqc }
+    }
+
 } else {
     ch_design_reads_csv
         .splitCsv(header:true, sep:',')
-        .map { row -> [ row.sample_id, [ file(row.fastq_1, checkIfExists: true), file(row.fastq_2, checkIfExists: true) ] ] }
-        .into { ch_raw_reads_fastqc;
-                ch_raw_reads_trimgalore }
+        .map { row -> [ row.sample_id, row.fastq_1 ] }
+        .set { ch_download }
 }
 
 /*
@@ -445,6 +458,47 @@ process MAKE_GENOME_FILTER {
     cut -f 1,2 ${fasta}.fai > ${fasta}.sizes
     $blacklist_filter > ${fasta}.include_regions.bed
     """
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+/* --                                                                     -- */
+/* --                        DOWNLOAD SRA                                 -- */
+/* --                                                                     -- */
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+
+/*
+ * STEP 0: Download SRA
+ */
+
+process DOWNLOAD {
+    tag "$name"
+    label 'process_high'
+    storeDir "${params.outdir}/fastq"
+
+    when:
+    params.sra_download
+
+    input:
+    tuple val(name), val(sra) from ch_download
+
+    output:
+    tuple val(name), path('*.fastq.gz') into ch_raw_reads_trimgalore
+    tuple val(name), path('*.fastq.gz') into ch_raw_reads_fastqc
+
+    script:
+    if (params.single_end) {
+        """
+        fastq-dump ${sra} -Z | bgzip -c -@${task.cpus} > ${name}.fastq.gz """
+    } else {
+        """
+        fastq-dump ${sra} -Z --split-spot \
+                       | pyfilesplit --lines 4 \
+                         >(bgzip -c -@${task.cpus} > ${name}_1.fastq.gz) \
+                         >(bgzip -c -@${task.cpus} > ${name}_2.fastq.gz) \
+                         | cat """
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
